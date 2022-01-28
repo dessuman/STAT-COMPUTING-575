@@ -1,0 +1,143 @@
+---
+title: "FINAL PROJECT STAT 575"
+author: "Dominic Essuman"
+date: "6/28/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+
+
+
+# function to compute cauchy c(0,1) pdf at x using normal with mean 0 variance 2 as th e proposed dist
+f <- function(x) {
+
+ 1/(pi*(1 + x^2))    
+}
+
+set.seed(1234)
+m <- 10000 # chain length    
+#sigma <- sqrt(2)     
+x <- numeric(m)     
+x[1] <- rnorm(1, mean = 0,sd =sqrt(2)) # generate first obs in the chain from candidate g() 
+k <- 0     # counter for number of rejected values  
+u <- runif(m)
+for (i in 2:m) {
+    # at each transition, the candidate point y
+    # is generated from N(0,sqrt(2)
+	xt <- x[i-1]
+	y <- rnorm(1) 
+	num <- f(y) * dnorm(xt)  #y is evaluated at f; xt is evaltd at g given y
+	den <- f(xt) * dnorm(y) #xt is evaluated at f; y is evaltd at g given xt 
+    if (u[i] <= num/den) 
+        x[i] <- y    # if y is accepted, assign y to next value in the chain
+	  else {     
+        x[i] <- xt   # else assign old value of x to the next value  
+        k <- k+1     # k record number of y rejected            
+		}       
+	}
+print(100*k/m)
+```
+About 15.17\% of the candidate points are rejected, so the chain is efficient.
+
+To check whether the generated values are independent (necessary for a random sample), we computed the autocorrelation for 100 adjacent values (or equivalently 10000/100 = 100 lags). It is easier to just check plot the autocorrelation values.  To plot the autocorrelation, we use the function `acf` in the`VGAM` package in R.
+
+```{r}
+library(VGAM) # install VGAM package
+# computes autocorrelation for 100 adjacent values
+acf(x, col = "red", lag.max = 100, ylab = "autocorrelation")  
+```
+
+ Note the highly correlated values in the first part of the chain. This tells us that the chain has not converged yet. We refer  these early values as  **burnin sample**. 
+
+ In practice, we usually discard this first burnin sample values. From the autocorrelation plot above, we see that the autocorrelation started to hover around 0 after the 1000th (or 10th lag) value. With this, we discard the first 2000 values in the chain. 
+
+ The last 9000 values can now be treated as the generated values from the Rayleigh distribution.
+
+```{r, fig.width=7, fig.height=7}
+par(mfrow = c(2, 2))  
+a <- ppoints(100)     
+QR <- tan((a-1)*pi)  #quantiles of Cauchy     
+Qx <- quantile(x, a)
+qqplot(QR, Qx, xlab ="Cauchy Quantiles", 
+			ylab ="Sample Quantiles",
+			main = "Original accepted values") 
+abline(0,1, col=2)
+
+b <- 2001      #discard the burnin sample     
+y <- x[b: m] 
+Qy <- quantile(y, a)
+qqplot(QR, Qy, xlab="Cauchy Quantiles", 
+			ylab ="Sample Quantiles",
+			main = "Minus the burnin sample") 
+abline(0, 1, col = 2)
+
+hist(x, breaks = 30, prob = T, col = "gray", main = "Original accepted values")
+curve(dcauchy(x, scale=1), add=TRUE, col="blue")
+
+hist(y, breaks = 30, prob = T, col = "gray", main = "Minus the burnin sample")
+curve(dcauchy(x, scale=1), add=TRUE, col="blue")
+```
+# using t distribution with degree of freedom 20
+
+```{r}
+f <- function(x) {
+
+ 1/(pi*(1 + x^2))    
+}
+
+set.seed(1234)
+m <- 10000 # chain length    
+#sigma <- sqrt(2)     
+x <- numeric(m)     
+x[1] <- rt(1,df =20) # generate first obs in the chain from candidate g() 
+k <- 0     # counter for number of rejected values  
+u <- runif(m)
+for (i in 2:m) {
+    # at each transition, the candidate point y
+    # is generated from t distribution with degree of freedom 20
+	xt <- x[i-1]
+	y <- rt(1,df=20) 
+	num <- f(y) * dt(xt,df = 20)  #y is evaluated at f; xt is evaltd at g given y
+	den <- f(xt) * dt(y, df =20) #xt is evaluated at f; y is evaltd at g given xt 
+    if (u[i] <= num/den) 
+        x[i] <- y    # if y is accepted, assign y to next value in the chain
+	  else {     
+        x[i] <- xt   # else assign old value of x to the next value  
+        k <- k+1     # k record number of y rejected            
+		}       
+	}
+print(100*k/m)
+```
+```{r}
+library(VGAM) # install VGAM package
+# computes autocorrelation for 100 adjacent values
+acf(x, col = "red", lag.max = 100, ylab = "autocorrelation")  
+```
+```{r, fig.width=7, fig.height=7}
+par(mfrow = c(2, 2))  
+a <- ppoints(100)     
+QR <- tan((a-0.5)*pi)  #quantiles of Cauchy     
+Qx <- quantile(x, a)
+qqplot(QR, Qx, xlab ="Cauchy Quantiles", 
+			ylab ="Sample Quantiles",
+			main = "Original accepted values") 
+abline(0,1, col=2)
+
+b <- 4001      #discard the burnin sample     
+y <- x[b: m] 
+Qy <- quantile(y, a)
+qqplot(QR, Qy, xlab="Cauchy Quantiles", 
+			ylab ="Sample Quantiles",
+			main = "Minus the burnin sample") 
+abline(0, 1, col = 2)
+
+hist(x, breaks = 30, prob = T, col = "gray", main = "Original accepted values")
+curve(dcauchy(x, scale=1), add=TRUE, col="blue")
+
+hist(y, breaks = 30, prob = T, col = "gray", main = "Minus the burnin sample")
+curve(dcauchy(x, scale=1), add=TRUE, col="blue")
+```
